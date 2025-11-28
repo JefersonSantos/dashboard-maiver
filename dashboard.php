@@ -120,7 +120,21 @@ $legendas = [
   'NEX' => 'Nexis'
 ];
 
-$produtos = [
+// Busca produtos do banco de dados
+$produtos = [];
+$query_produtos = "SELECT tabela, nome, imagem_url FROM produtos WHERE ativo = 1";
+$result_produtos = $conn->query($query_produtos);
+if ($result_produtos) {
+  while ($row = $result_produtos->fetch_assoc()) {
+    $produtos[$row['tabela']] = [
+      'nome' => $row['nome'],
+      'img'  => $row['imagem_url']
+    ];
+  }
+}
+
+// Fallback: produtos padrão caso não haja produtos cadastrados no banco
+$produtos_fallback = [
   'adv_bioxcell' => [
       'nome' => 'Bioxcell',
       'img'  => 'https://thumbor.cartpanda.com/nH5ao1dBlpgq_JimR_hYOI47F0Y=/800x0/https://assets.mycartpanda.com/static/products_images/ec/62/60/1746579329.png'
@@ -415,6 +429,9 @@ $produtos = [
   ]
 ];
 
+// Mescla produtos: primeiro fallback, depois banco (banco sobrescreve fallback)
+$produtos = array_merge($produtos_fallback, $produtos);
+
 // Monta a query dinâmica com UNION ALL
 $query = "
 SELECT JSON_ARRAYAGG(
@@ -507,6 +524,9 @@ if ($exportar) {
         <strong>📊 Dashboard MAIVER</strong>
       </a>
       <div class="d-flex align-items-center">
+        <a href="produtos.php" class="btn btn-outline-light btn-sm me-2">
+          📦 Gerenciar Produtos
+        </a>
         <span class="user-info">
           👤 <?= htmlspecialchars($_SESSION['usuario_nome']) ?>
         </span>
@@ -546,8 +566,8 @@ if ($exportar) {
             $operacao = $item['Operação'];
             $prefixo = strtoupper(substr($operacao, 0, 3));
             $legenda = $legendas[$prefixo] ?? 'Sem legenda';
-            $produtoNome = $produtos[$operacao]['nome'] ?? 'Produto desconhecido';
-            $produtoImg  = $produtos[$operacao]['img'] ?? 'imagens/default.jpg';
+            $produtoNome = $produtos[$operacao]['nome'] ?? $produtos_fallback[$operacao]['nome'] ?? 'Produto desconhecido';
+            $produtoImg  = $produtos[$operacao]['img'] ?? $produtos_fallback[$operacao]['img'] ?? 'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27200%27 height=%27200%27%3E%3Crect fill=%27%23ddd%27 width=%27200%27 height=%27200%27/%3E%3Ctext fill=%27%23999%27 x=%2750%25%27 y=%2750%25%27 text-anchor=%27middle%27 dy=%27.3em%27%3ESem imagem%3C/text%3E%3C/svg%3E';
           ?>
           <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
             <div class="card card-op border-primary text-center p-3">

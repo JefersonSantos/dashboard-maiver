@@ -12,16 +12,23 @@ Sistema de dashboard com controle de acesso por login para visualização de lea
 
 ### 1. Configuração do Banco de Dados
 
-Execute o script SQL para criar a tabela de usuários:
+Execute os scripts SQL para criar as tabelas necessárias:
 
+**Tabela de Usuários:**
 ```sql
 -- Execute o arquivo create_users_table.sql no seu banco de dados
+```
+
+**Tabela de Produtos:**
+```sql
+-- Execute o arquivo create_produtos_table.sql no seu banco de dados
 ```
 
 Ou execute diretamente no MySQL:
 
 ```bash
 mysql -u seu_usuario -p nome_do_banco < create_users_table.sql
+mysql -u seu_usuario -p nome_do_banco < create_produtos_table.sql
 ```
 
 ### 2. Configuração de Acesso
@@ -46,13 +53,17 @@ Após executar o script SQL, você terá um usuário padrão:
 ## 📁 Estrutura de Arquivos
 
 ```
-├── config.php          # Configurações do banco e funções de autenticação
-├── auth.php            # Verificação de autenticação
-├── login.php           # Página de login
-├── logout.php          # Página de logout
-├── dashboard.php       # Dashboard principal (protegido)
-├── create_users_table.sql  # Script SQL para criar tabela de usuários
-└── README.md           # Este arquivo
+├── config.php              # Configurações do banco e funções de autenticação
+├── auth.php                 # Verificação de autenticação
+├── login.php                # Página de login
+├── logout.php               # Página de logout
+├── dashboard.php            # Dashboard principal (protegido)
+├── produtos.php             # Módulo de gerenciamento de produtos
+├── index.php                # Redirecionamento automático
+├── create_users_table.sql   # Script SQL para criar tabela de usuários
+├── create_produtos_table.sql # Script SQL para criar tabela de produtos
+├── .htaccess                # Configurações de segurança (opcional)
+└── README.md                # Este arquivo
 ```
 
 ## 🔐 Sistema de Autenticação
@@ -98,12 +109,42 @@ $senha_hash = password_hash('senha123', PASSWORD_DEFAULT);
 UPDATE usuarios SET ativo = 0 WHERE username = 'usuario';
 ```
 
+## 📦 Módulo de Gerenciamento de Produtos
+
+### Funcionalidades
+
+- ✅ Cadastro de novos produtos com seleção de tabela
+- ✅ Edição de produtos existentes (nome, imagem, status)
+- ✅ Exclusão de produtos
+- ✅ Visualização de todos os produtos cadastrados
+- ✅ Integração automática com o dashboard
+- ✅ Preview de imagens
+
+### Como Usar
+
+1. **Acessar o Módulo:** Clique em "📦 Gerenciar Produtos" no dashboard
+2. **Cadastrar Produto:**
+   - Selecione a tabela do produto
+   - Digite o nome do produto
+   - Cole a URL da imagem do produto
+   - Clique em "Cadastrar Produto"
+3. **Editar Produto:** Clique no botão "Editar" na lista de produtos
+4. **Deletar Produto:** Clique no botão "Deletar" e confirme a exclusão
+
+### Integração com Dashboard
+
+- Os produtos cadastrados aparecem automaticamente no dashboard
+- Se um produto não estiver cadastrado, o sistema usa os dados padrão (fallback)
+- Produtos inativos não aparecem no dashboard
+- As imagens são exibidas diretamente no dashboard
+
 ## 🔒 Segurança
 
 - As senhas são verificadas usando `password_verify()` quando possível
 - As sessões são gerenciadas pelo PHP
 - As queries SQL usam `escape()` para prevenir SQL injection
 - O dashboard só é acessível após autenticação
+- O módulo de produtos também é protegido por autenticação
 
 ## 📝 Notas
 
@@ -124,6 +165,11 @@ UPDATE usuarios SET ativo = 0 WHERE username = 'usuario';
 
 ### Sessão expira muito rápido
 - Ajuste as configurações de sessão do PHP no `php.ini`
+
+### Produtos não aparecem no dashboard
+- Verifique se a tabela `produtos` foi criada no banco de dados
+- Confirme que o produto está marcado como "Ativo" no módulo de gerenciamento
+- Verifique se a tabela do produto está correta (deve corresponder ao nome da tabela no banco)
 
 ## 📞 Suporte
 
