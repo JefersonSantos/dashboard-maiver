@@ -1,0 +1,19 @@
+# Proteção de arquivos sensíveis
+<FilesMatch "^(config\.php|auth\.php|create_users_table\.sql)$">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+
+# Página inicial
+DirectoryIndex index.php
+
+# Proteção contra listagem de diretórios
+Options -Indexes
+
+# Configurações de segurança
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set X-XSS-Protection "1; mode=block"
+</IfModule>
+

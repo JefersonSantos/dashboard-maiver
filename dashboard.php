@@ -1,0 +1,572 @@
+<?php
+require_once 'auth.php';
+
+// Captura as datas do formulário
+$data_inicio = isset($_POST['data_inicio']) ? date('d/m/Y', strtotime($_POST['data_inicio'])) : date('01/m/Y');
+$data_fim = isset($_POST['data_fim']) ? date('d/m/Y', strtotime($_POST['data_fim'])) : date('d/m/Y');
+$exportar = isset($_POST['exportar']);
+
+// Tabelas que serão consultadas
+$tabelas = [
+  'adv_bioxcell',
+  'adv_honeyboostxl',
+  'adv_brainxcell',
+  'aud_vitalprime', 
+  'dwm_nerveguard', 
+  'fnx_prostabliss',
+  'gvm_glycoshizen', 
+  'gvm_jointsana', 
+  'irm_lipoboost', 
+  'irm_lipodrops', 
+  'irm_lipopure',
+  'irm_slimmetrix',
+  'isd_mounja',
+  'isd_cardiocare',
+  'isd_gastricalm',
+  'lgw_divine_script', 
+  'lmn_barislend',
+  'ntc_glucoforce', 
+  'ntc_prostashield', 
+  'ntc_slimshape', 
+  'ntc_sugarreverse', 
+  'sip_burnjaro', 
+  'sip_meltjaro', 
+  'sip_glucolife360',
+  'sip_ironboost',
+  'vg_systemamerican', 
+  'vg_trustearn',
+  'vg_greentracker',
+  'vg_energycore',
+  'v2g_glcapsmv1', 
+  'v2g_glcapsmv2',
+  'bhv_lipomax',
+  'bhv_iqblastpro',
+  'bhv_sugarwise',
+  'bhv_sugarwisess',
+  'bhv_primepulsemale',
+  'bhv_fungizero',
+  'bhv_prostaprime',
+  'bhv_lipoextreme',
+  'bhv_lipogummy',
+  'bhv_visiummax',
+  'bhv_prostaprimess',
+  'bhv_arthrocel',
+  'bhv_nerverestore',
+  'bhv_memoblast',
+  'bhv_glp1max',
+  'bhv_lipocorpus',
+  'ntc_leanshape',
+  'hpg_sveltavenastra',
+  'hpg_cardiobalance',
+  'hpg_revitra',
+  'hpg_levinasilka',
+  'eep_axionis',
+  'blc_strongstream',
+  'blc_strongflow',
+  'red_burnflow',
+  'red_slimfuse',
+  'fmg_folifix',
+  'dgm_sugarvita',
+  'zen_jointflex',
+  'nwm_ironpulse',
+  'nwm_metalean',
+  'nwm_vigorboost',
+  'inf_glucodelete',
+  'inf_neuromind',
+  'sag_spymate',
+  'upx_glucoguard',
+  'dtc_ozemburnmax',
+  'dtc_nowburn',
+  'amx_protocoloceroazucar',
+  'mvx_slimvita',
+  '4mg_apexboost',
+  '4mg_apexburn',
+  'nex_tiklynvox',
+  'dip_lasabiduriadesalomon'
+];
+
+$legendas = [
+  'DWM' => 'DW Marketing',
+  'NTC' => 'Nitro Company',
+  'LMN' => 'Luminon',
+  'SIP' => 'Super Info Products',
+  'GVM' => 'GV Mídias',
+  'ADV' => 'Advende',
+  'AUD' => 'Audax',
+  'IRM' => 'IRM Digital',
+  'FNX' => 'Grupo Fênix',
+  'WAV' => 'Wave',
+  'ISD' => 'Insider',
+  'VG '  => 'VG ',
+  'V2G' => 'V2 Global',
+  'BHV' => 'BHever',
+  'LGW' => 'Ligh Weigt',
+  'BLC' => 'Black Scale',
+  'HPG' => 'HPG Ventures',
+  'EEP' => 'E&P Laps',
+  'RED' => 'R&D',
+  'FMG' => 'Fahto Media Group',
+  'DGM' => 'Digmach',
+  'ZEN' => 'Z&N Global',
+  'AST' => 'Astron',
+  'NWM' => 'Nw Media',
+  'INF' => 'Influenciei',
+  'SAG' => 'Sage',
+  'UPX' => 'UPX Caps',
+  'DTC' => 'Direct Cash',
+  'AMX' => 'Aura Matrix',
+  'MVX' => 'MVX Group',
+  '4MG' => '4 Maps Group',
+  'NEX' => 'Nexis'
+];
+
+$produtos = [
+  'adv_bioxcell' => [
+      'nome' => 'Bioxcell',
+      'img'  => 'https://thumbor.cartpanda.com/nH5ao1dBlpgq_JimR_hYOI47F0Y=/800x0/https://assets.mycartpanda.com/static/products_images/ec/62/60/1746579329.png'
+  ],
+  'adv_brainxcell' => [
+      'nome' => 'BrainXCell',
+      'img'  => 'https://thumbor.cartpanda.com/j3YBhcDWQkyAaPpEqEPRiWACbOM=/800x0/https://assets.mycartpanda.com/static/products_images/c0/37/53/1760122667.png'
+  ],
+  'adv_honeyboostxl' => [
+      'nome' => 'HoneyBoost XL',
+      'img'  => 'https://thumbor.cartpanda.com/FRAdAtVwQH5ca5-vunog6M6fCyQ=/800x0/https://assets.mycartpanda.com/static/products_images/bf/d4/cd/1760375488.png'
+  ],
+  'aud_vitalprime' => [
+      'nome' => 'Vital Prime',
+      'img'  => 'https://thumbor.cartpanda.com/7M5Hy5HbeOaGygFPMCZ60Ng1AE4=/800x0/https://assets.mycartpanda.com/static/products_images/0c/9f/90/1722531657.png'
+  ],
+  'dwm_nerveguard' => [
+      'nome' => 'Nerve Guard Premium',
+      'img'  => 'https://thumbor.cartpanda.com/Q2tbi9eGdaplAEPi06doHo4X_AM=/800x0/https://assets.mycartpanda.com/static/products_images/d3/a7/08/1743091257.jpg'
+  ],
+  'fnx_prostabliss' => [
+      'nome' => 'Prostabliss',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'gvm_glycoshizen' => [
+      'nome' => 'Glycoshizen',
+      'img'  => 'https://maiver.com.br/wp-content/uploads/2025/05/11-1024x1024.png'
+  ],
+  'irm_lipoboost' => [
+      'nome' => 'Lipo Boost',
+      'img'  => 'https://thumbor.cartpanda.com/9cViM3FDOGbKxojixpovqw5fYeY=/800x0/https://assets.mycartpanda.com/static/products_images/0e/8f/fe/1752784234.png'
+  ],
+  'irm_lipopure' => [
+      'nome' => 'LipoPure',
+      'img'  => 'https://thumbor.cartpanda.com/yuaEtovVOKqWfRrHWJhTluwEc9k=/800x0/https://assets.mycartpanda.com/static/products_images/32/44/f0/1752592375.png'
+  ],
+  'irm_slimmetrix' => [
+      'nome' => 'Slim Metrix',
+      'img'  => 'https://thumbor.cartpanda.com/E_M_9FdQrTVB55Euo4Jo0oNJXMs=/800x0/https://assets.mycartpanda.com/static/products_images/d2/7e/4b/1750516423.png'
+  ],
+  'isd_mounja' => [
+      'nome' => 'Mounja',
+      'img'  => 'https://thumbor.cartpanda.com/D9NB1DWGoLL80yTnIHIFHMpYMUY=/800x0/https://assets.mycartpanda.com/static/products_images/2c/e5/22/1749490734.png'
+  ],
+  'isd_cardiocare' => [
+      'nome' => 'Cardio Care',
+      'img'  => 'https://thumbor.cartpanda.com/uTvyjSbkwVYhIbUGY301tUzly28=/800x0/https://assets.mycartpanda.com/static/products_images/68/be/a9/1757341570.png'
+  ],
+  'isd_gastricalm' => [
+      'nome' => 'Gastri Calm',
+      'img'  => 'https://thumbor.cartpanda.com/eigmoqC2INYE5flq_yc42U0VA2Y=/800x0/https://assets.mycartpanda.com/static/products_images/d5/aa/41/1756998182.png'
+  ],
+  'lgw_divine_script' => [
+      'nome' => 'Divine Script',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'lmn_barislend' => [
+      'nome' => 'Barislend',
+      'img'  => 'https://thumbor.cartpanda.com/fmbnRdgxlboMfZOKY_le1nm9BDI=/800x0/https://assets.mycartpanda.com/static/products_images/63/ac/26/1748894982.png'
+  ],
+  'ntc_glucoforce' => [
+      'nome' => 'Gluco Force',
+      'img'  => 'https://thumbor.cartpanda.com/ert0b2y7heiG0_BrbwNOGuqnTv4=/800x0/https://assets.mycartpanda.com/static/products_images/15/c0/31/1743439268.png'
+  ],
+  'ntc_prostashield' => [
+      'nome' => 'Prosta Shield',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'ntc_slimshape' => [
+      'nome' => 'Slim Shape',
+      'img'  => 'https://thumbor.cartpanda.com/ApTVTdPFQqTWvQwzO55ivVfg-dE=/800x0/https://assets.mycartpanda.com/static/products_images/50/1a/cd/1746801372.png'
+  ],
+  'ntc_sugarreverse' => [
+      'nome' => 'Sugar Reverse',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'sip_burnjaro' => [
+      'nome' => 'Burn Jaro',
+      'img'  => 'https://thumbor.cartpanda.com/42PZTM4K9TtZn-wwXyLdmU2eHe8=/800x0/https://assets.mycartpanda.com/static/products_images/61/3a/43/1741286694.png'
+  ],
+  'sip_meltjaro' => [
+      'nome' => 'Melt Jaro',
+      'img'  => 'https://thumbor.cartpanda.com/ZYFxy8O2GhbLJNR4xzBo4MhM6Bg=/800x0/https://assets.mycartpanda.com/static/products_images/b4/f2/41/1750770280.png'
+  ],
+  'sip_glucolife360' => [
+      'nome' => 'Gluco Life 360',
+      'img'  => 'https://thumbor.cartpanda.com/2Rd_t8zS1Sc4fp2xQQG6lsfqUGg=/800x0/https://assets.mycartpanda.com/static/products_images/08/86/87/1748635866.png'
+  ],
+  'sip_ironboost' => [
+      'nome' => 'Iron Boost',
+      'img'  => 'https://thumbor.cartpanda.com/mtr-Mytkdr1Uc8qkWgHA1O9WS6k=/800x0/https://assets.mycartpanda.com/static/products_images/16/dd/2f/1757366072.png'
+  ],
+  'vg_systemamerican' => [
+      'nome' => 'System American',
+      'img'  => 'https://thumbor.cartpanda.com/3fbJrgRIpCijRXYyKuKaBkihgqg=/800x0/https://assets.mycartpanda.com/static/products_images/b8/bb/77/1749059879.png'
+  ],
+  'vg_trustearn' => [
+      'nome' => 'Trust Earn',
+      'img'  => 'https://thumbor.cartpanda.com/DsoLG82NyhwN5IBQu2GDTpsg0QI=/800x0/https://assets.mycartpanda.com/static/products_images/2c/49/a0/1758738860.png'
+  ],
+  'vg_greentracker' => [
+      'nome' => 'Green Tracker',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'vg_energycore' => [
+      'nome' => 'Energy Core',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'v2g_glcapsmv1' => [
+      'nome' => 'GL Caps MV1',
+      'img'  => 'https://thumbor.cartpanda.com/A_9xlDKj08M7yGTJkewVZURRmzc=/800x0/https://assets.mycartpanda.com/static/products_images/a4/b2/75/1751501292.png'
+  ],
+  'v2g_glcapsmv2' => [
+      'nome' => 'GL Caps MV2',
+      'img'  => 'https://thumbor.cartpanda.com/A_9xlDKj08M7yGTJkewVZURRmzc=/800x0/https://assets.mycartpanda.com/static/products_images/a4/b2/75/1751501292.png'
+  ],
+  'bhv_lipomax' => [
+      'nome' => 'Lipo Max',
+      'img'  => 'https://thumbor.cartpanda.com/6Q1Z-I-Eu254MlDju0o1YEGFS9g=/800x0/https://assets.mycartpanda.com/static/products_images/1c/57/a4/1753288181.png'
+  ],
+  'bhv_iqblastpro' => [
+      'nome' => 'IQ Blast Pro',
+      'img'  => 'https://thumbor.cartpanda.com/ic9WFObzSJsn39CHvNVKXgH4xR8=/800x0/https://assets.mycartpanda.com/static/products_images/69/c4/18/1753293523.png'
+  ],
+  'bhv_sugarwise' => [
+      'nome' => 'Sugar Wise',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'bhv_primepulsemale' => [
+      'nome' => 'Prime Pulse Male',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'bhv_fungizero' => [
+      'nome' => 'Fungi Zero',
+      'img'  => 'https://thumbor.cartpanda.com/BjmvAiBMLbNma2EFbQIJCC9uaDY=/800x0/https://assets.mycartpanda.com/static/products_images/0a/62/4a/1760726334.png'
+  ],
+  'bhv_prostaprime' => [
+      'nome' => 'Prosta Prime',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'bhv_lipoextreme' => [
+      'nome' => 'Lipo Extreme',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'bhv_lipogummy' => [
+      'nome' => 'Lipo Gummy',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'bhv_visiummax' => [
+      'nome' => 'Visium Max',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'bhv_prostaprimess' => [
+      'nome' => 'Prosta Prime SS',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'bhv_arthrocel' => [
+      'nome' => 'Arthrocell',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'bhv_nerverestore' => [
+      'nome' => 'Nerve Restore',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'bhv_memoblast' => [
+      'nome' => 'Memo Blast',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'bhv_glp1max' => [
+      'nome' => 'GLP1 Max',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'bhv_lipocorpus' => [
+      'nome' => 'Lipo Corpus',
+      'img'  => 'https://maiver.us/wp-content/uploads/2025/08/cropped-Frame-29.png'
+  ],
+  'ntc_leanshape' => [
+      'nome' => 'Lean Shape',
+      'img'  => 'https://assets.mycartpanda.com/static/products_images/b5/3a/4a/1753384717.png'
+  ],
+  'hpg_sveltavenastra' => [
+      'nome' => 'Svelta Venastra',
+      'img'  => 'https://thumbor.cartpanda.com/BuTtZxiCoGuJiew2WN5q-Q3Symo=/800x0/https://assets.mycartpanda.com/static/products_images/86/1b/9c/1754004703.png'
+  ],
+  'hpg_levinasilka' => [
+      'nome' => 'Levina Silka',
+      'img'  => 'https://assets.mycartpanda.com/static/products_images/75/df/b3/1759697593.png'
+  ],
+  'hpg_revitra' => [
+      'nome' => 'Revitra',
+      'img'  => 'https://thumbor.cartpanda.com/zZ27LT5509ihYUpyDuBeQzrSS10=/800x0/https://assets.mycartpanda.com/static/products_images/f8/9b/5e/1756947432.jpg'
+  ],
+  'hpg_cardiobalance' => [
+      'nome' => 'Cardio Balance',
+      'img'  => 'https://assets.mycartpanda.com/static/products_images/cf/2a/d9/1760153350.png'
+  ],
+  'gvm_jointsana' => [
+      'nome' => 'Joint Sana',
+      'img'  => 'https://thumbor.cartpanda.com/RDdrZonsosQ9k0LEUopVgnoloRY=/800x0/https://assets.mycartpanda.com/static/products_images/68/08/66/1753286353.png'
+  ],
+  'blc_strongstream' => [
+      'nome' => 'Strong Stream',
+      'img'  => 'https://thumbor.cartpanda.com/T_oXm7u-BwDo7zBvE6gGpoQhjoo=/800x0/https://assets.mycartpanda.com/static/products_images/1f/21/2b/1742573251.png'
+  ],
+  'blc_strongflow' => [
+      'nome' => 'Strong Flow',
+      'img'  => 'https://thumbor.cartpanda.com/dDwyNVPlh90zosV0yG6flPKBpro=/800x0/https://assets.mycartpanda.com/static/products_images/02/d4/b4/1756729620.png'
+  ],
+  'eep_axionis' => [
+      'nome' => 'Axionis',
+      'img'  => 'https://thumbor.cartpanda.com/zbY-VaE5td25PCFl1bZZouScawI=/800x0/https://assets.mycartpanda.com/static/products_images/5b/5e/0f/1744138745.png'
+  ],
+  'red_burnflow' => [
+      'nome' => 'Burn Flow',
+      'img'  => 'https://thumbor.cartpanda.com/2sqSUiIdKojtTz9rxdktWh5q_Ek=/800x0/https://assets.mycartpanda.com/static/products_images/65/3f/ec/1755646923.png'
+  ],
+  'red_slimfuse' => [
+      'nome' => 'Slim Fuse',
+      'img'  => 'https://thumbor.cartpanda.com/heScxsXWWERuswhFWPK1QYdJZT4=/800x0/https://assets.mycartpanda.com/static/products_images/63/88/08/1761177730.png'
+  ],
+  'fmg_folifix' => [
+      'nome' => 'FoliFix',
+      'img'  => 'https://thumbor.cartpanda.com/bWI89KBTHo1YNBr0e5OR7NMtQNg=/800x0/https://assets.mycartpanda.com/static/products_images/53/3e/3f/1746559252.png'
+  ],
+  'dgm_sugarvita' => [
+      'nome' => 'Sugar Vita',
+      'img'  => 'https://thumbor.cartpanda.com/wQJNYSd0YC_B7TTm1W2vGiUfQjA=/800x0/https://assets.mycartpanda.com/static/products_images/d3/9b/20/1755645653.png'
+  ],
+  'zen_jointflex' => [
+      'nome' => 'JointFlex',
+      'img'  => 'https://thumbor.cartpanda.com/bc6rv1Y_LDPyAcBQK36QaYlT718=/800x0/https://assets.mycartpanda.com/static/products_images/3b/41/92/1757036418.png'
+  ],
+  'nwm_ironpulse' => [
+      'nome' => 'IronPulse',
+      'img'  => 'https://thumbor.cartpanda.com/N81UQ8ke6TLPrnbXygXnM2Tr7VM=/800x0/https://assets.mycartpanda.com/static/products_images/75/5c/1b/1757451004.png'
+  ],
+  'nwm_vigorboost' => [
+      'nome' => 'VigorBoost',
+      'img'  => 'https://assets.mycartpanda.com/static/products_images/b2/bd/63/1758141388.png'
+  ],
+  'nwm_metalean' => [
+      'nome' => 'MetaLean',
+      'img'  => 'https://thumbor.cartpanda.com/2iVXNqdoVgsZ4SDoSSfm1PikgQY=/800x0/https://assets.mycartpanda.com/static/products_images/1e/9d/c7/1759948736.png'
+  ],
+  'inf_glucodelete' => [
+      'nome' => 'Gluco Delete',
+      'img'  => 'https://assets.mycartpanda.com/static/products_images/a2/b1/35/1757630244.png'
+  ],
+  'inf_neuromind' => [
+      'nome' => 'NeuroMind',
+      'img'  => 'https://thumbor.cartpanda.com/MjbYMRlyVuhYRv4JuJeSsI8ZVJ0=/120x0/https://assets.mycartpanda.com/static/products_images/a5/1b/4f/1758310901.png'
+  ],
+  'sag_spymate' => [
+      'nome' => 'Spy Mate',
+      'img'  => 'https://production-mundpay.s3.us-east-2.amazonaws.com/products/2025/8/20/fvXK7GyVjn6my1CZyXg2ebYRHy3C1QwToi7Ipjma.png'
+  ],
+  'dtc_ozemburnmax' => [
+      'nome' => 'OzemBurn Max',
+      'img'  => 'https://thumbor.cartpanda.com/T3XvA5dWGKK11U1SzMDApu45p-4=/800x0/https://assets.mycartpanda.com/static/products_images/47/11/9c/1758221921.png'
+  ],
+  'dtc_nowburn' => [
+      'nome' => 'NowBurn',
+      'img'  => 'https://thumbor.cartpanda.com/4UAel4-f_pdBgDPmOLCJzb3Ha_g=/800x0/https://assets.mycartpanda.com/static/products_images/e8/f4/8b/1759775615.png'
+  ],
+  'upx_glucoguard' => [
+      'nome' => 'GlucoGuard',
+      'img'  => 'https://thumbor.cartpanda.com/Izg_t0nxjf6PC_6bUMB9jqMKbXo=/800x0/https://assets.mycartpanda.com/static/products_images/a3/f9/1c/1758172726.png'
+  ],
+  'amx_protocoloceroazucar' => [
+      'nome' => 'Protocolo Cero Azúcar',
+      'img'  => 'https://static-media.hotmart.com/Dyztz8OkGm2OgoH_yYF-BNeS6E8=/300x300/smart/filters:format(webp):background_color(white)/hotmart/product_pictures/7fab01e8-ed54-4b32-bb12-ca53a75475a6/ProtocoloCeroAzucar.png?w=920'
+  ],
+  'mvx_slimvita' => [
+      'nome' => 'Slim Vita',
+      'img'  => 'https://thumbor.cartpanda.com/xYUCsijSw-gTf9R0zUIkAO2HtZc=/800x0/https://assets.mycartpanda.com/static/products_images/45/38/92/1755709555.jpg'
+  ],
+  '4mg_apexboost' => [
+      'nome' => 'Apex Boost',
+      'img'  => 'https://www.checkout-ds24.com/pb/img/merchant_4835859/image/product/ZSKDVE1N.gif'
+  ],
+  '4mg_apexburn' => [
+      'nome' => 'Apex Burn',
+      'img'  => 'https://www.checkout-ds24.com/pb/img/merchant_4835859/image/product/TYZAY9LK.png'
+  ],
+  'nex_tiklynvox' => [
+      'nome' => 'Tik Lynvox 2.0',
+      'img'  => 'https://static-media.hotmart.com/9Ar79Dgc7aAR36onrXrjJpCv_jg=/300x300/filters:quality(100)/hotmart/product_pictures/f5b43cb3-03ec-4b0d-be51-6281ae875614/ChatGPTImage16deoutde202512_22_16.png'
+  ],
+  'dip_lasabiduriadesalomon' => [
+      'nome' => 'La Sabiduria de Salomon',
+      'img'  => 'https://static-media.hotmart.com/1bu6LeLzb0EBjiNYRWJF3wca7wE=/300x300/filters:quality(100)/hotmart/product_pictures/15c89670-3ff7-4e10-8826-903a527eb1cc/LOGOWOSLATAM1600x1600px.png'
+  ]
+];
+
+// Monta a query dinâmica com UNION ALL
+$query = "
+SELECT JSON_ARRAYAGG(
+  JSON_OBJECT(
+    'Operação', Operação,
+    'Leads', Leads
+  )
+) AS resultado
+FROM (
+";
+
+$unions = [];
+foreach ($tabelas as $tabela) {
+  $unions[] = "SELECT '$tabela' AS Operação, COUNT(*) AS Leads FROM {$tabela}_rec
+    WHERE STR_TO_DATE(data_compra, '%d/%m/%Y')
+    BETWEEN STR_TO_DATE('" . escape($conn, $data_inicio) . "', '%d/%m/%Y')
+    AND STR_TO_DATE('" . escape($conn, $data_fim) . "', '%d/%m/%Y')";
+}
+
+$query .= implode(" UNION ALL ", $unions) . ") AS subconsulta;";
+
+// Executa a query
+$resultado = $conn->query($query);
+$dados = [];
+if ($resultado) {
+  $json = $resultado->fetch_assoc()['resultado'];
+  $dados = json_decode($json, true);
+}
+
+// Exporta como Excel se solicitado
+if ($exportar) {
+  header("Content-Type: application/vnd.ms-excel");
+  header("Content-Disposition: attachment; filename=relatorio_leads.xls");
+  echo "<table border='1'><tr><th>Operação</th><th>Leads</th></tr>";
+  foreach ($dados as $item) {
+    echo "<tr><td>{$item['Operação']}</td><td>{$item['Leads']}</td></tr>";
+  }
+  echo "</table>";
+  exit;
+}
+?>
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Leads - MAIVER</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .container-produtos {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+    }
+    .card-op {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+      background: #fff;
+      box-shadow: 0px 2px 6px rgba(0,0,0,0.1);
+      min-height: 300px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .product-img {
+      height: 150px;
+      width: 100%;
+      object-fit: contain;
+      background: #fff;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .navbar-custom {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .user-info {
+      color: white;
+      margin-right: 15px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="dashboard.php">
+        <strong>📊 Dashboard MAIVER</strong>
+      </a>
+      <div class="d-flex align-items-center">
+        <span class="user-info">
+          👤 <?= htmlspecialchars($_SESSION['usuario_nome']) ?>
+        </span>
+        <a href="logout.php" class="btn btn-outline-light btn-sm">
+          Sair
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <form method="POST" class="row g-3 align-items-end mb-4">
+      <div class="col-md-3">
+        <label class="form-label">Data Início</label>
+        <input type="date" name="data_inicio" class="form-control"
+          value="<?= date('Y-m-d', strtotime(str_replace('/', '-', $data_inicio))) ?>" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Data Fim</label>
+        <input type="date" name="data_fim" class="form-control"
+          value="<?= date('Y-m-d', strtotime(str_replace('/', '-', $data_fim))) ?>" required>
+      </div>
+      <div class="col-md-auto">
+        <button type="submit" class="btn btn-primary">🔍 Pesquisar</button>
+      </div>
+      <div class="col-md-auto">
+        <button type="submit" name="exportar" value="1" class="btn btn-success">⬇️ Exportar Excel</button>
+      </div>
+    </form>
+
+    <hr>
+
+    <div class="row">
+      <?php if (!empty($dados)): ?>
+        <?php foreach ($dados as $item): ?>
+          <?php
+            $operacao = $item['Operação'];
+            $prefixo = strtoupper(substr($operacao, 0, 3));
+            $legenda = $legendas[$prefixo] ?? 'Sem legenda';
+            $produtoNome = $produtos[$operacao]['nome'] ?? 'Produto desconhecido';
+            $produtoImg  = $produtos[$operacao]['img'] ?? 'imagens/default.jpg';
+          ?>
+          <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
+            <div class="card card-op border-primary text-center p-3">
+              <img src="<?= $produtoImg ?>" alt="<?= $produtoNome ?>" class="img-fluid product-img">
+              <h5 class="card-title text-primary"><?= $produtoNome ?></h5>
+              <p class="card-subtitle mb-1 text-muted small"><?= $legenda ?></p>
+              <p class="card-text fs-4"><?= (int)$item['Leads'] ?> Leads</p>
+            </div>
+          </div>
+        <?php endforeach; ?>
+      <?php else: ?>
+        <div class="col-12">
+          <div class="alert alert-warning text-center">Nenhum dado encontrado no período selecionado.</div>
+        </div>
+      <?php endif; ?>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
