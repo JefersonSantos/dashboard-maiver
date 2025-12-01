@@ -183,20 +183,53 @@ foreach ($produtos_cadastrados as $prod) {
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
   <style>
+    body {
+      min-height: 100vh;
+      background-color: #f5f5f7;
+    }
+    .layout-wrapper {
+      display: flex;
+      min-height: 100vh;
+    }
+    .sidebar {
+      width: 230px;
+      background: #1f2933;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 15px;
+    }
+    .sidebar .logo {
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+    }
+    .sidebar .nav-link {
+      color: #cbd2d9;
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-bottom: 4px;
+      font-size: 0.95rem;
+    }
+    .sidebar .nav-link.active,
+    .sidebar .nav-link:hover {
+      background: #3e4c59;
+      color: #fff;
+    }
+    .sidebar .nav-link i {
+      margin-right: 6px;
+    }
+    .content-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
     .navbar-custom {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
     .user-info {
       color: white;
       margin-right: 15px;
-    }
-    .product-card {
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 15px;
-      background: #fff;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .product-img-preview {
       max-width: 100px;
@@ -219,27 +252,42 @@ foreach ($produtos_cadastrados as $prod) {
   </style>
 </head>
 <body>
-  <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="dashboard.php">
-        <strong>📦 Gerenciar Produtos</strong>
-      </a>
-      <div class="d-flex align-items-center">
-        <a href="dashboard.php" class="btn btn-outline-light btn-sm me-2">
-          <i class="bi bi-arrow-left"></i> Voltar ao Dashboard
+  <div class="layout-wrapper">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        MAIVER Dashboard
+      </div>
+      <nav class="nav flex-column mb-auto">
+        <a href="dashboard.php" class="nav-link">
+          📊 Dashboard
         </a>
-        <span class="user-info">
+        <a href="produtos.php" class="nav-link active">
+          📦 Produtos
+        </a>
+      </nav>
+      <div class="mt-auto">
+        <hr class="border-secondary">
+        <div class="small mb-2">
           👤 <?= htmlspecialchars($_SESSION['usuario_nome']) ?>
-        </span>
-        <a href="logout.php" class="btn btn-outline-light btn-sm">
+        </div>
+        <a href="logout.php" class="btn btn-outline-light btn-sm w-100">
           Sair
         </a>
       </div>
-    </div>
-  </nav>
+    </aside>
 
-  <div class="container mt-4">
+    <div class="content-wrapper">
+      <!-- Navbar superior -->
+      <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+        <div class="container-fluid">
+          <a class="navbar-brand" href="produtos.php">
+            <strong>📦 Gerenciar Produtos</strong>
+          </a>
+        </div>
+      </nav>
+
+      <div class="container mt-4">
     <?php if ($mensagem): ?>
       <div class="alert alert-<?= $tipo_mensagem ?> alert-dismissible fade show" role="alert">
         <?= htmlspecialchars($mensagem) ?>
@@ -247,8 +295,8 @@ foreach ($produtos_cadastrados as $prod) {
       </div>
     <?php endif; ?>
 
-    <!-- Formulário de Cadastro -->
-    <div class="form-section">
+        <!-- Formulário de Cadastro -->
+        <div class="form-section">
       <h3 class="mb-4"><i class="bi bi-plus-circle"></i> Cadastrar Novo Produto</h3>
       <form method="POST" action="">
         <input type="hidden" name="acao" value="cadastrar">
@@ -281,8 +329,8 @@ foreach ($produtos_cadastrados as $prod) {
       </form>
     </div>
 
-    <!-- Lista de Produtos Cadastrados -->
-    <div class="form-section">
+        <!-- Lista de Produtos Cadastrados -->
+        <div class="form-section">
       <h3 class="mb-4"><i class="bi bi-list-ul"></i> Produtos Cadastrados (<?= count($produtos_cadastrados) ?>)</h3>
       
       <?php if (empty($produtos_cadastrados)): ?>
@@ -408,12 +456,14 @@ foreach ($produtos_cadastrados as $prod) {
           </table>
         </div>
       <?php endif; ?>
+        </div>
+      </div>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    // Preview de imagem ao digitar URL
+    // Preview de imagem ao digitar URL (ponto de extensão futuro)
     document.getElementById('imagem_url')?.addEventListener('input', function(e) {
       const url = e.target.value;
       if (url) {

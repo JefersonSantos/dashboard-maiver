@@ -120,7 +120,7 @@ $legendas = [
   'NEX' => 'Nexis'
 ];
 
-// Busca produtos do banco de dados
+// Busca produtos do banco de dados (todos os produtos vêm da tabela `produtos`)
 $produtos = [];
 $query_produtos = "SELECT tabela, nome, imagem_url FROM produtos WHERE ativo = 1";
 $result_produtos = $conn->query($query_produtos);
@@ -133,7 +133,9 @@ if ($result_produtos) {
   }
 }
 
-// Fallback: produtos padrão caso não haja produtos cadastrados no banco
+// Fallback antigo de produtos foi descontinuado.
+// Toda configuração de nome e imagem agora é feita exclusivamente via módulo produtos.php.
+// Este array é mantido apenas temporariamente para compatibilidade visual, mas não é mais usado.
 $produtos_fallback = [
   'adv_bioxcell' => [
       'nome' => 'Bioxcell',
@@ -482,6 +484,54 @@ if ($exportar) {
   <title>Dashboard Leads - MAIVER</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
+    body {
+      min-height: 100vh;
+      background-color: #f5f5f7;
+    }
+    .layout-wrapper {
+      display: flex;
+      min-height: 100vh;
+    }
+    .sidebar {
+      width: 230px;
+      background: #1f2933;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 15px;
+    }
+    .sidebar .logo {
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+    }
+    .sidebar .nav-link {
+      color: #cbd2d9;
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-bottom: 4px;
+      font-size: 0.95rem;
+    }
+    .sidebar .nav-link.active,
+    .sidebar .nav-link:hover {
+      background: #3e4c59;
+      color: #fff;
+    }
+    .sidebar .nav-link i {
+      margin-right: 6px;
+    }
+    .content-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .navbar-custom {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .user-info {
+      color: white;
+      margin-right: 15px;
+    }
     .container-produtos {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -507,37 +557,45 @@ if ($exportar) {
       padding: 10px;
       border-bottom: 1px solid #eee;
     }
-    .navbar-custom {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
-    .user-info {
-      color: white;
-      margin-right: 15px;
-    }
   </style>
 </head>
 <body>
-  <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="dashboard.php">
-        <strong>📊 Dashboard MAIVER</strong>
-      </a>
-      <div class="d-flex align-items-center">
-        <a href="produtos.php" class="btn btn-outline-light btn-sm me-2">
-          📦 Gerenciar Produtos
+  <div class="layout-wrapper">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        MAIVER Dashboard
+      </div>
+      <nav class="nav flex-column mb-auto">
+        <a href="dashboard.php" class="nav-link active">
+          📊 Dashboard
         </a>
-        <span class="user-info">
+        <a href="produtos.php" class="nav-link">
+          📦 Produtos
+        </a>
+      </nav>
+      <div class="mt-auto">
+        <hr class="border-secondary">
+        <div class="small mb-2">
           👤 <?= htmlspecialchars($_SESSION['usuario_nome']) ?>
-        </span>
-        <a href="logout.php" class="btn btn-outline-light btn-sm">
+        </div>
+        <a href="logout.php" class="btn btn-outline-light btn-sm w-100">
           Sair
         </a>
       </div>
-    </div>
-  </nav>
+    </aside>
 
-  <div class="container mt-4">
+    <div class="content-wrapper">
+      <!-- Navbar superior -->
+      <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+        <div class="container-fluid">
+          <a class="navbar-brand" href="dashboard.php">
+            <strong>📊 Dashboard MAIVER</strong>
+          </a>
+        </div>
+      </nav>
+
+      <div class="container mt-4">
     <form method="POST" class="row g-3 align-items-end mb-4">
       <div class="col-md-3">
         <label class="form-label">Data Início</label>
@@ -559,30 +617,33 @@ if ($exportar) {
 
     <hr>
 
-    <div class="row">
-      <?php if (!empty($dados)): ?>
-        <?php foreach ($dados as $item): ?>
-          <?php
-            $operacao = $item['Operação'];
-            $prefixo = strtoupper(substr($operacao, 0, 3));
-            $legenda = $legendas[$prefixo] ?? 'Sem legenda';
-            $produtoNome = $produtos[$operacao]['nome'] ?? $produtos_fallback[$operacao]['nome'] ?? 'Produto desconhecido';
-            $produtoImg  = $produtos[$operacao]['img'] ?? $produtos_fallback[$operacao]['img'] ?? 'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27200%27 height=%27200%27%3E%3Crect fill=%27%23ddd%27 width=%27200%27 height=%27200%27/%3E%3Ctext fill=%27%23999%27 x=%2750%25%27 y=%2750%25%27 text-anchor=%27middle%27 dy=%27.3em%27%3ESem imagem%3C/text%3E%3C/svg%3E';
-          ?>
-          <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
-            <div class="card card-op border-primary text-center p-3">
-              <img src="<?= $produtoImg ?>" alt="<?= $produtoNome ?>" class="img-fluid product-img">
-              <h5 class="card-title text-primary"><?= $produtoNome ?></h5>
-              <p class="card-subtitle mb-1 text-muted small"><?= $legenda ?></p>
-              <p class="card-text fs-4"><?= (int)$item['Leads'] ?> Leads</p>
+        <div class="row">
+          <?php if (!empty($dados)): ?>
+            <?php foreach ($dados as $item): ?>
+              <?php
+                $operacao = $item['Operação'];
+                $prefixo = strtoupper(substr($operacao, 0, 3));
+                $legenda = $legendas[$prefixo] ?? 'Sem legenda';
+                // Nome e imagem agora vêm apenas da tabela `produtos`
+                $produtoNome = $produtos[$operacao]['nome'] ?? 'Produto desconhecido';
+                $produtoImg  = $produtos[$operacao]['img'] ?? 'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27200%27 height=%27200%27%3E%3Crect fill=%27%23ddd%27 width=%27200%27 height=%27200%27/%3E%3Ctext fill=%27%23999%27 x=%2750%25%27 y=%2750%25%27 text-anchor=%27middle%27 dy=%27.3em%27%3ESem imagem%3C/text%3E%3C/svg%3E';
+              ?>
+              <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
+                <div class="card card-op border-primary text-center p-3">
+                  <img src="<?= $produtoImg ?>" alt="<?= $produtoNome ?>" class="img-fluid product-img">
+                  <h5 class="card-title text-primary"><?= $produtoNome ?></h5>
+                  <p class="card-subtitle mb-1 text-muted small"><?= $legenda ?></p>
+                  <p class="card-text fs-4"><?= (int)$item['Leads'] ?> Leads</p>
+                </div>
+              </div>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <div class="col-12">
+              <div class="alert alert-warning text-center">Nenhum dado encontrado no período selecionado.</div>
             </div>
-          </div>
-        <?php endforeach; ?>
-      <?php else: ?>
-        <div class="col-12">
-          <div class="alert alert-warning text-center">Nenhum dado encontrado no período selecionado.</div>
+          <?php endif; ?>
         </div>
-      <?php endif; ?>
+      </div>
     </div>
   </div>
 
