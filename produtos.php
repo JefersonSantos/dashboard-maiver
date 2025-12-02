@@ -90,18 +90,13 @@ if ($result_produtos) {
 
 // Lista dinâmica de tabelas disponíveis: todas as tabelas *_rec do banco
 $tabelas = [];
-$sqlTabelas = "
-  SELECT TABLE_NAME 
-  FROM information_schema.TABLES 
-  WHERE TABLE_SCHEMA = '" . escape($conn, $database) . "' 
-    AND TABLE_NAME LIKE '%\\_rec'
-  ORDER BY TABLE_NAME
-";
+$sqlTabelas = "SHOW TABLES LIKE '%\\_rec'";
 $resTabelas = $conn->query($sqlTabelas);
 if ($resTabelas) {
-  while ($row = $resTabelas->fetch_assoc()) {
+  while ($row = $resTabelas->fetch_row()) {
+    $tableName = $row[0]; // nome completo da tabela, ex: adv_bioxcell_rec
     // Remove o sufixo _rec para obter o nome da operação usado no dashboard
-    $base = preg_replace('/_rec$/', '', $row['TABLE_NAME']);
+    $base = preg_replace('/_rec$/', '', $tableName);
     $tabelas[] = $base;
   }
 }
