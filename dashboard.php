@@ -6,84 +6,25 @@ $data_inicio = isset($_POST['data_inicio']) ? date('d/m/Y', strtotime($_POST['da
 $data_fim = isset($_POST['data_fim']) ? date('d/m/Y', strtotime($_POST['data_fim'])) : date('d/m/Y');
 $exportar = isset($_POST['exportar']);
 
-// Tabelas que serão consultadas
-$tabelas = [
-  'adv_bioxcell',
-  'adv_honeyboostxl',
-  'adv_brainxcell',
-  'aud_vitalprime', 
-  'dwm_nerveguard', 
-  'fnx_prostabliss',
-  'gvm_glycoshizen', 
-  'gvm_jointsana', 
-  'irm_lipoboost', 
-  'irm_lipodrops', 
-  'irm_lipopure',
-  'irm_slimmetrix',
-  'isd_mounja',
-  'isd_cardiocare',
-  'isd_gastricalm',
-  'lgw_divine_script', 
-  'lmn_barislend',
-  'ntc_glucoforce', 
-  'ntc_prostashield', 
-  'ntc_slimshape', 
-  'ntc_sugarreverse', 
-  'sip_burnjaro', 
-  'sip_meltjaro', 
-  'sip_glucolife360',
-  'sip_ironboost',
-  'vg_systemamerican', 
-  'vg_trustearn',
-  'vg_greentracker',
-  'vg_energycore',
-  'v2g_glcapsmv1', 
-  'v2g_glcapsmv2',
-  'bhv_lipomax',
-  'bhv_iqblastpro',
-  'bhv_sugarwise',
-  'bhv_sugarwisess',
-  'bhv_primepulsemale',
-  'bhv_fungizero',
-  'bhv_prostaprime',
-  'bhv_lipoextreme',
-  'bhv_lipogummy',
-  'bhv_visiummax',
-  'bhv_prostaprimess',
-  'bhv_arthrocel',
-  'bhv_nerverestore',
-  'bhv_memoblast',
-  'bhv_glp1max',
-  'bhv_lipocorpus',
-  'ntc_leanshape',
-  'hpg_sveltavenastra',
-  'hpg_cardiobalance',
-  'hpg_revitra',
-  'hpg_levinasilka',
-  'eep_axionis',
-  'blc_strongstream',
-  'blc_strongflow',
-  'red_burnflow',
-  'red_slimfuse',
-  'fmg_folifix',
-  'dgm_sugarvita',
-  'zen_jointflex',
-  'nwm_ironpulse',
-  'nwm_metalean',
-  'nwm_vigorboost',
-  'inf_glucodelete',
-  'inf_neuromind',
-  'sag_spymate',
-  'upx_glucoguard',
-  'dtc_ozemburnmax',
-  'dtc_nowburn',
-  'amx_protocoloceroazucar',
-  'mvx_slimvita',
-  '4mg_apexboost',
-  '4mg_apexburn',
-  'nex_tiklynvox',
-  'dip_lasabiduriadesalomon'
-];
+// Tabelas que serão consultadas (dinâmico: todas *_rec existentes no banco)
+$tabelas = [];
+$sqlTabelas = "
+  SELECT TABLE_NAME 
+  FROM information_schema.TABLES 
+  WHERE TABLE_SCHEMA = '" . escape($conn, $database) . "' 
+    AND TABLE_NAME LIKE '%\\_rec'
+  ORDER BY TABLE_NAME
+";
+$resTabelas = $conn->query($sqlTabelas);
+if ($resTabelas) {
+  while ($row = $resTabelas->fetch_assoc()) {
+    // Remove o sufixo _rec para obter o nome da operação
+    $base = preg_replace('/_rec$/', '', $row['TABLE_NAME']);
+    $tabelas[] = $base;
+  }
+}
+$tabelas = array_unique($tabelas);
+sort($tabelas);
 
 $legendas = [
   'DWM' => 'DW Marketing',
