@@ -6,20 +6,46 @@ $data_inicio = isset($_POST['data_inicio']) ? date('d/m/Y', strtotime($_POST['da
 $data_fim = isset($_POST['data_fim']) ? date('d/m/Y', strtotime($_POST['data_fim'])) : date('d/m/Y');
 $exportar = isset($_POST['exportar']);
 
-// Tabelas que serão consultadas (dinâmico: todas *_rec existentes no banco)
-$tabelas = [];
-$sqlTabelas = "SHOW TABLES LIKE '%\\_rec'";
-$resTabelas = $conn->query($sqlTabelas);
-if ($resTabelas) {
-  while ($row = $resTabelas->fetch_row()) {
-    $tableName = $row[0]; // nome completo da tabela, ex: adv_bioxcell_rec
-    // Remove o sufixo _rec para obter o nome da operação
-    $base = preg_replace('/_rec$/', '', $tableName);
-    $tabelas[] = $base;
+// Busca produtos cadastrados na tabela produtos (prioridade)
+$produtos_cadastrados = [];
+$query_produtos = "SELECT tabela, nome, imagem_url FROM produtos WHERE ativo = 1 ORDER BY nome ASC";
+$result_produtos = $conn->query($query_produtos);
+if ($result_produtos) {
+  while ($row = $result_produtos->fetch_assoc()) {
+    $produtos_cadastrados[] = $row['tabela'];
   }
 }
-$tabelas = array_unique($tabelas);
-sort($tabelas);
+
+// Se não houver produtos cadastrados, busca tabelas _rec e _ap do banco
+$tabelas = [];
+if (empty($produtos_cadastrados)) {
+  $sqlTabelasRec = "SHOW TABLES LIKE '%\\_rec'";
+  $sqlTabelasAp = "SHOW TABLES LIKE '%\\_ap'";
+  $resTabelasRec = $conn->query($sqlTabelasRec);
+  $resTabelasAp = $conn->query($sqlTabelasAp);
+  
+  if ($resTabelasRec) {
+    while ($row = $resTabelasRec->fetch_row()) {
+      $tableName = $row[0];
+      $base = preg_replace('/_rec$/', '', $tableName);
+      $tabelas[] = $base;
+    }
+  }
+  
+  if ($resTabelasAp) {
+    while ($row = $resTabelasAp->fetch_row()) {
+      $tableName = $row[0];
+      $base = preg_replace('/_ap$/', '', $tableName);
+      $tabelas[] = $base;
+    }
+  }
+  
+  $tabelas = array_unique($tabelas);
+  sort($tabelas);
+} else {
+  // Usa produtos cadastrados
+  $tabelas = $produtos_cadastrados;
+}
 
 $legendas = [
   'DWM' => 'DW Marketing',
@@ -58,11 +84,12 @@ $legendas = [
 
 // Busca produtos do banco de dados (todos os produtos vêm da tabela `produtos`)
 $produtos = [];
-$query_produtos = "SELECT tabela, nome, imagem_url FROM produtos WHERE ativo = 1";
+$query_produtos = "SELECT id, tabela, nome, imagem_url FROM produtos WHERE ativo = 1";
 $result_produtos = $conn->query($query_produtos);
 if ($result_produtos) {
   while ($row = $result_produtos->fetch_assoc()) {
     $produtos[$row['tabela']] = [
+      'id'   => $row['id'],
       'nome' => $row['nome'],
       'img'  => $row['imagem_url']
     ];
@@ -370,42 +397,77 @@ $produtos_fallback = [
 // Mescla produtos: primeiro fallback, depois banco (banco sobrescreve fallback)
 $produtos = array_merge($produtos_fallback, $produtos);
 
-// Monta a query dinâmica com UNION ALL
-$query = "
-SELECT JSON_ARRAYAGG(
-  JSON_OBJECT(
-    'Operação', Operação,
-    'Leads', Leads
-  )
-) AS resultado
-FROM (
-";
-
-$unions = [];
-foreach ($tabelas as $tabela) {
-  $unions[] = "SELECT '$tabela' AS Operação, COUNT(*) AS Leads FROM {$tabela}_rec
-    WHERE STR_TO_DATE(data_compra, '%d/%m/%Y')
-    BETWEEN STR_TO_DATE('" . escape($conn, $data_inicio) . "', '%d/%m/%Y')
-    AND STR_TO_DATE('" . escape($conn, $data_fim) . "', '%d/%m/%Y')";
-}
-
-$query .= implode(" UNION ALL ", $unions) . ") AS subconsulta;";
-
-// Executa a query
-$resultado = $conn->query($query);
+// Busca dados de cada produto (tabelas _rec e _ap)
 $dados = [];
-if ($resultado) {
-  $json = $resultado->fetch_assoc()['resultado'];
-  $dados = json_decode($json, true);
+$data_inicio_escaped = escape($conn, $data_inicio);
+$data_fim_escaped = escape($conn, $data_fim);
+
+foreach ($tabelas as $tabela) {
+  $tabela_escaped = escape($conn, $tabela);
+  $tabela_rec = $tabela . '_rec';
+  $tabela_ap = $tabela . '_ap';
+  
+  $leads_rec = 0;
+  $leads_ap = 0;
+  
+  // Verifica se a tabela _rec existe e busca dados
+  $check_rec = $conn->query("SHOW TABLES LIKE '{$tabela_rec}'");
+  if ($check_rec && $check_rec->num_rows > 0) {
+    $query_rec = "SELECT COUNT(*) AS cnt FROM `{$tabela_rec}`
+      WHERE STR_TO_DATE(data_compra, '%d/%m/%Y')
+      BETWEEN STR_TO_DATE('{$data_inicio_escaped}', '%d/%m/%Y')
+      AND STR_TO_DATE('{$data_fim_escaped}', '%d/%m/%Y')";
+    
+    $result_rec = $conn->query($query_rec);
+    if ($result_rec) {
+      $row_rec = $result_rec->fetch_assoc();
+      $leads_rec = (int)$row_rec['cnt'];
+    }
+  }
+  
+  // Verifica se a tabela _ap existe e busca dados
+  $check_ap = $conn->query("SHOW TABLES LIKE '{$tabela_ap}'");
+  if ($check_ap && $check_ap->num_rows > 0) {
+    $query_ap = "SELECT COUNT(*) AS cnt FROM `{$tabela_ap}`
+      WHERE STR_TO_DATE(data_compra, '%d/%m/%Y')
+      BETWEEN STR_TO_DATE('{$data_inicio_escaped}', '%d/%m/%Y')
+      AND STR_TO_DATE('{$data_fim_escaped}', '%d/%m/%Y')";
+    
+    $result_ap = $conn->query($query_ap);
+    if ($result_ap) {
+      $row_ap = $result_ap->fetch_assoc();
+      $leads_ap = (int)$row_ap['cnt'];
+    }
+  }
+  
+  $total = $leads_rec + $leads_ap;
+  
+  // Adiciona aos dados se o produto estiver cadastrado ou se houver pelo menos uma tabela existente
+  $produto_cadastrado = in_array($tabela, $produtos_cadastrados);
+  $tem_tabela = (isset($check_rec) && $check_rec->num_rows > 0) || (isset($check_ap) && $check_ap->num_rows > 0);
+  
+  // Sempre adiciona se o produto estiver cadastrado, ou se houver tabelas existentes
+  if ($produto_cadastrado || $tem_tabela) {
+    $dados[] = [
+      'Operação' => $tabela,
+      'Leads_Rec' => $leads_rec,
+      'Leads_Ap' => $leads_ap,
+      'Total' => $total
+    ];
+  }
 }
 
 // Exporta como Excel se solicitado
 if ($exportar) {
   header("Content-Type: application/vnd.ms-excel");
   header("Content-Disposition: attachment; filename=relatorio_leads.xls");
-  echo "<table border='1'><tr><th>Operação</th><th>Leads</th></tr>";
+  echo "<table border='1'><tr><th>Operação</th><th>Leads Recuperação</th><th>Leads Aprovados</th><th>Total</th></tr>";
   foreach ($dados as $item) {
-    echo "<tr><td>{$item['Operação']}</td><td>{$item['Leads']}</td></tr>";
+    $operacao = htmlspecialchars($item['Operação']);
+    $leads_rec = (int)($item['Leads_Rec'] ?? 0);
+    $leads_ap = (int)($item['Leads_Ap'] ?? 0);
+    $total = (int)($item['Total'] ?? 0);
+    echo "<tr><td>{$operacao}</td><td>{$leads_rec}</td><td>{$leads_ap}</td><td>{$total}</td></tr>";
   }
   echo "</table>";
   exit;
@@ -419,6 +481,7 @@ if ($exportar) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard Leads - MAIVER</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
   <style>
     body {
       min-height: 100vh;
@@ -493,6 +556,17 @@ if ($exportar) {
       padding: 10px;
       border-bottom: 1px solid #eee;
     }
+    .product-img-preview {
+      max-width: 100px;
+      max-height: 100px;
+      object-fit: contain;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 5px;
+    }
+    .card-op .btn {
+      z-index: 10;
+    }
   </style>
 </head>
 <body>
@@ -532,6 +606,16 @@ if ($exportar) {
       </nav>
 
       <div class="container mt-4">
+    <?php 
+      // Exibe mensagem de sucesso se houver redirect
+      if (isset($_GET['msg']) && $_GET['msg'] === 'success' && isset($_GET['text'])): 
+    ?>
+      <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <?= htmlspecialchars($_GET['text']) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <?php endif; ?>
+    
     <form method="POST" class="row g-3 align-items-end mb-4">
       <div class="col-md-3">
         <label class="form-label">Data Início</label>
@@ -563,15 +647,97 @@ if ($exportar) {
                 // Nome e imagem agora vêm apenas da tabela `produtos`
                 $produtoNome = $produtos[$operacao]['nome'] ?? 'Produto desconhecido';
                 $produtoImg  = $produtos[$operacao]['img'] ?? 'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27200%27 height=%27200%27%3E%3Crect fill=%27%23ddd%27 width=%27200%27 height=%27200%27/%3E%3Ctext fill=%27%23999%27 x=%2750%25%27 y=%2750%25%27 text-anchor=%27middle%27 dy=%27.3em%27%3ESem imagem%3C/text%3E%3C/svg%3E';
+                $produtoId = $produtos[$operacao]['id'] ?? null;
+                $leads_rec = (int)($item['Leads_Rec'] ?? 0);
+                $leads_ap = (int)($item['Leads_Ap'] ?? 0);
+                $total = (int)($item['Total'] ?? 0);
               ?>
               <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
-                <div class="card card-op border-primary text-center p-3">
+                <div class="card card-op border-primary text-center p-3 position-relative">
+                  <?php if ($produtoId): ?>
+                    <button type="button" class="btn btn-sm btn-warning position-absolute top-0 end-0 m-2" 
+                            data-bs-toggle="modal" data-bs-target="#editModal<?= $produtoId ?>"
+                            title="Editar Produto">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                  <?php endif; ?>
                   <img src="<?= $produtoImg ?>" alt="<?= $produtoNome ?>" class="img-fluid product-img">
                   <h5 class="card-title text-primary"><?= $produtoNome ?></h5>
                   <p class="card-subtitle mb-1 text-muted small"><?= $legenda ?></p>
-                  <p class="card-text fs-4"><?= (int)$item['Leads'] ?> Leads</p>
+                  <div class="mt-2">
+                    <p class="card-text mb-1">
+                      <span class="badge bg-info">Recuperação: <?= $leads_rec ?></span>
+                    </p>
+                    <p class="card-text mb-1">
+                      <span class="badge bg-success">Aprovados: <?= $leads_ap ?></span>
+                    </p>
+                    <p class="card-text fs-4 mt-2">
+                      <strong>Total: <?= $total ?></strong>
+                    </p>
+                  </div>
                 </div>
               </div>
+              
+              <?php if ($produtoId): ?>
+                <!-- Modal de Edição no Dashboard -->
+                <div class="modal fade" id="editModal<?= $produtoId ?>" tabindex="-1">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <form method="POST" action="produtos.php">
+                        <input type="hidden" name="acao" value="editar">
+                        <input type="hidden" name="id" value="<?= $produtoId ?>">
+                        <input type="hidden" name="redirect" value="dashboard.php">
+                        <div class="modal-header">
+                          <h5 class="modal-title">Editar Produto: <?= htmlspecialchars($produtoNome) ?></h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                          <div class="mb-3">
+                            <label class="form-label">Tabela</label>
+                            <input type="text" class="form-control" value="<?= htmlspecialchars($operacao) ?>" disabled>
+                            <small class="text-muted">A tabela não pode ser alterada</small>
+                          </div>
+                          <?php
+                            // Busca dados atuais do produto
+                            $query_atual = "SELECT nome, imagem_url, ativo FROM produtos WHERE id = " . (int)$produtoId;
+                            $result_atual = $conn->query($query_atual);
+                            $produto_atual = $result_atual ? $result_atual->fetch_assoc() : null;
+                          ?>
+                          <?php if ($produto_atual): ?>
+                            <div class="mb-3">
+                              <label class="form-label">Nome do Produto</label>
+                              <input type="text" class="form-control" name="nome" value="<?= htmlspecialchars($produto_atual['nome']) ?>" required>
+                            </div>
+                            <div class="mb-3">
+                              <label class="form-label">URL da Imagem</label>
+                              <input type="url" class="form-control" name="imagem_url" value="<?= htmlspecialchars($produto_atual['imagem_url']) ?>" required>
+                              <div class="mt-2">
+                                <img src="<?= htmlspecialchars($produto_atual['imagem_url']) ?>" 
+                                     alt="Preview" 
+                                     class="product-img-preview"
+                                     style="max-width: 100px; max-height: 100px; object-fit: contain; border: 1px solid #ddd; border-radius: 4px; padding: 5px;"
+                                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27100%27 height=%27100%27%3E%3Crect fill=%27%23ddd%27 width=%27100%27 height=%27100%27/%3E%3Ctext fill=%27%23999%27 x=%2750%25%27 y=%2750%25%27 text-anchor=%27middle%27 dy=%27.3em%27%3ESem imagem%3C/text%3E%3C/svg%3E'">
+                              </div>
+                            </div>
+                            <div class="mb-3">
+                              <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="ativo" id="ativo<?= $produtoId ?>" <?= $produto_atual['ativo'] ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="ativo<?= $produtoId ?>">
+                                  Produto Ativo
+                                </label>
+                              </div>
+                            </div>
+                          <?php endif; ?>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                          <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              <?php endif; ?>
             <?php endforeach; ?>
           <?php else: ?>
             <div class="col-12">

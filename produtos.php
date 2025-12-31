@@ -9,7 +9,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $acao = isset($_POST['acao']) ? $_POST['acao'] : '';
   
   if ($acao === 'cadastrar') {
+    // Aceita tanto do select quanto do input manual
     $tabela = isset($_POST['tabela']) ? trim($_POST['tabela']) : '';
+    $tabela_manual = isset($_POST['tabela_manual']) ? trim($_POST['tabela_manual']) : '';
+    $tabela = !empty($tabela) ? $tabela : $tabela_manual;
+    
     $nome = isset($_POST['nome']) ? trim($_POST['nome']) : '';
     $imagem_url = isset($_POST['imagem_url']) ? trim($_POST['imagem_url']) : '';
     
@@ -17,23 +21,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $mensagem = 'Por favor, preencha todos os campos.';
       $tipo_mensagem = 'danger';
     } else {
-      $tabela = escape($conn, $tabela);
-      $nome = escape($conn, $nome);
-      $imagem_url = escape($conn, $imagem_url);
-      
-      // Verifica se já existe
-      $check = $conn->query("SELECT id FROM produtos WHERE tabela = '$tabela'");
-      if ($check && $check->num_rows > 0) {
-        $mensagem = 'Este produto já está cadastrado. Use a opção de editar.';
-        $tipo_mensagem = 'warning';
+      // Valida formato da tabela (apenas letras, números e underscore)
+      if (!preg_match('/^[a-z0-9_]+$/', strtolower($tabela))) {
+        $mensagem = 'O nome da tabela deve conter apenas letras minúsculas, números e underscore.';
+        $tipo_mensagem = 'danger';
       } else {
-        $query = "INSERT INTO produtos (tabela, nome, imagem_url, ativo) VALUES ('$tabela', '$nome', '$imagem_url', 1)";
-        if ($conn->query($query)) {
-          $mensagem = 'Produto cadastrado com sucesso!';
-          $tipo_mensagem = 'success';
+        $tabela = strtolower($tabela); // Normaliza para minúsculas
+        $tabela = escape($conn, $tabela);
+        $nome = escape($conn, $nome);
+        $imagem_url = escape($conn, $imagem_url);
+        
+        // Verifica se já existe
+        $check = $conn->query("SELECT id FROM produtos WHERE tabela = '$tabela'");
+        if ($check && $check->num_rows > 0) {
+          $mensagem = 'Este produto já está cadastrado. Use a opção de editar.';
+          $tipo_mensagem = 'warning';
         } else {
-          $mensagem = 'Erro ao cadastrar produto: ' . $conn->error;
-          $tipo_mensagem = 'danger';
+          $query = "INSERT INTO produtos (tabela, nome, imagem_url, ativo) VALUES ('$tabela', '$nome', '$imagem_url', 1)";
+          if ($conn->query($query)) {
+            $mensagem = 'Produto cadastrado com sucesso!';
+            $tipo_mensagem = 'success';
+          } else {
+            $mensagem = 'Erro ao cadastrar produto: ' . $conn->error;
+            $tipo_mensagem = 'danger';
+          }
         }
       }
     }
@@ -53,6 +64,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       if ($conn->query($query)) {
         $mensagem = 'Produto atualizado com sucesso!';
         $tipo_mensagem = 'success';
+        
+        // Se houver redirect, redireciona após sucesso
+        if (isset($_POST['redirect']) && !empty($_POST['redirect'])) {
+          header('Location: ' . $_POST['redirect'] . '?msg=success&text=Produto atualizado com sucesso!');
+          exit;
+        }
       } else {
         $mensagem = 'Erro ao atualizar produto: ' . $conn->error;
         $tipo_mensagem = 'danger';
@@ -88,19 +105,34 @@ if ($result_produtos) {
   }
 }
 
-// Lista dinâmica de tabelas disponíveis: todas as tabelas *_rec do banco
-$tabelas = [];
-$sqlTabelas = "SHOW TABLES LIKE '%\\_rec'";
-$resTabelas = $conn->query($sqlTabelas);
-if ($resTabelas) {
-  while ($row = $resTabelas->fetch_row()) {
+// Lista dinâmica de tabelas disponíveis: todas as tabelas *_rec e *_ap do banco
+$tabelas_rec = [];
+$tabelas_ap = [];
+$sqlTabelasRec = "SHOW TABLES LIKE '%\\_rec'";
+$sqlTabelasAp = "SHOW TABLES LIKE '%\\_ap'";
+$resTabelasRec = $conn->query($sqlTabelasRec);
+$resTabelasAp = $conn->query($sqlTabelasAp);
+
+if ($resTabelasRec) {
+  while ($row = $resTabelasRec->fetch_row()) {
     $tableName = $row[0]; // nome completo da tabela, ex: adv_bioxcell_rec
     // Remove o sufixo _rec para obter o nome da operação usado no dashboard
     $base = preg_replace('/_rec$/', '', $tableName);
-    $tabelas[] = $base;
+    $tabelas_rec[] = $base;
   }
 }
-$tabelas = array_unique($tabelas);
+
+if ($resTabelasAp) {
+  while ($row = $resTabelasAp->fetch_row()) {
+    $tableName = $row[0]; // nome completo da tabela, ex: adv_bioxcell_ap
+    // Remove o sufixo _ap para obter o nome da operação usado no dashboard
+    $base = preg_replace('/_ap$/', '', $tableName);
+    $tabelas_ap[] = $base;
+  }
+}
+
+// Combina todas as tabelas únicas
+$tabelas = array_unique(array_merge($tabelas_rec, $tabelas_ap));
 sort($tabelas);
 
 // Tabelas já cadastradas em produtos (não devem aparecer no select)
@@ -240,14 +272,16 @@ foreach ($produtos_cadastrados as $prod) {
           <div class="col-md-4 mb-3">
             <label for="tabela" class="form-label">Tabela <span class="text-danger">*</span></label>
             <select class="form-select" id="tabela" name="tabela" required>
-              <option value="">Selecione uma tabela</option>
+              <option value="">Selecione uma tabela ou digite manualmente</option>
               <?php foreach ($tabelas as $tab): ?>
                 <?php if (!in_array($tab, $tabelas_cadastradas)): ?>
                   <option value="<?= htmlspecialchars($tab) ?>"><?= htmlspecialchars($tab) ?></option>
                 <?php endif; ?>
               <?php endforeach; ?>
             </select>
-            <small class="text-muted">Tabelas já cadastradas não aparecem aqui</small>
+            <small class="text-muted">Você pode selecionar uma tabela existente ou digitar manualmente abaixo</small>
+            <input type="text" class="form-control mt-2" id="tabela_manual" name="tabela_manual" placeholder="Ou digite o nome da tabela manualmente (ex: meu_produto)" oninput="document.getElementById('tabela').value = this.value || ''">
+            <small class="text-muted d-block mt-1">Ao digitar manualmente, o campo acima será atualizado automaticamente</small>
           </div>
           <div class="col-md-4 mb-3">
             <label for="nome" class="form-label">Nome do Produto <span class="text-danger">*</span></label>
