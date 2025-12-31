@@ -271,17 +271,17 @@ foreach ($produtos_cadastrados as $prod) {
         <div class="row">
           <div class="col-md-4 mb-3">
             <label for="tabela" class="form-label">Tabela <span class="text-danger">*</span></label>
-            <select class="form-select" id="tabela" name="tabela" required>
-              <option value="">Selecione uma tabela ou digite manualmente</option>
+            <select class="form-select" id="tabela" name="tabela">
+              <option value="">Selecione uma tabela existente</option>
               <?php foreach ($tabelas as $tab): ?>
                 <?php if (!in_array($tab, $tabelas_cadastradas)): ?>
                   <option value="<?= htmlspecialchars($tab) ?>"><?= htmlspecialchars($tab) ?></option>
                 <?php endif; ?>
               <?php endforeach; ?>
             </select>
-            <small class="text-muted">Você pode selecionar uma tabela existente ou digitar manualmente abaixo</small>
-            <input type="text" class="form-control mt-2" id="tabela_manual" name="tabela_manual" placeholder="Ou digite o nome da tabela manualmente (ex: meu_produto)" oninput="document.getElementById('tabela').value = this.value || ''">
-            <small class="text-muted d-block mt-1">Ao digitar manualmente, o campo acima será atualizado automaticamente</small>
+            <small class="text-muted d-block mt-1">OU digite manualmente abaixo:</small>
+            <input type="text" class="form-control mt-2" id="tabela_manual" name="tabela_manual" placeholder="Digite o nome da tabela (ex: meu_produto)" oninput="document.getElementById('tabela').value = this.value || ''">
+            <small class="text-muted d-block mt-1">Você pode selecionar uma tabela existente acima ou digitar um novo nome manualmente</small>
           </div>
           <div class="col-md-4 mb-3">
             <label for="nome" class="form-label">Nome do Produto <span class="text-danger">*</span></label>
@@ -433,7 +433,24 @@ foreach ($produtos_cadastrados as $prod) {
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    // Preview de imagem ao digitar URL (ponto de extensão futuro)
+    // Validação do formulário - garante que pelo menos um campo (select ou manual) esteja preenchido
+    document.querySelector('form[method="POST"]')?.addEventListener('submit', function(e) {
+      const tabela = document.getElementById('tabela').value;
+      const tabela_manual = document.getElementById('tabela_manual').value;
+      
+      if (!tabela && !tabela_manual) {
+        e.preventDefault();
+        alert('Por favor, selecione uma tabela ou digite o nome manualmente.');
+        return false;
+      }
+      
+      // Se o campo manual estiver preenchido, usa ele
+      if (tabela_manual && !tabela) {
+        document.getElementById('tabela').value = tabela_manual;
+      }
+    });
+    
+    // Preview de imagem ao digitar URL
     document.getElementById('imagem_url')?.addEventListener('input', function(e) {
       const url = e.target.value;
       if (url) {

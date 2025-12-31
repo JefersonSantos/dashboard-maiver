@@ -402,6 +402,10 @@ $dados = [];
 $data_inicio_escaped = escape($conn, $data_inicio);
 $data_fim_escaped = escape($conn, $data_fim);
 
+// Converte datas para formato MySQL (YYYY-MM-DD) para comparação
+$data_inicio_mysql = date('Y-m-d', strtotime(str_replace('/', '-', $data_inicio)));
+$data_fim_mysql = date('Y-m-d', strtotime(str_replace('/', '-', $data_fim)));
+
 foreach ($tabelas as $tabela) {
   $tabela_escaped = escape($conn, $tabela);
   $tabela_rec = $tabela . '_rec';
@@ -409,11 +413,14 @@ foreach ($tabelas as $tabela) {
   
   $leads_rec = 0;
   $leads_ap = 0;
+  $check_rec = null;
+  $check_ap = null;
   
-  // Verifica se a tabela _rec existe e busca dados
-  $check_rec = $conn->query("SHOW TABLES LIKE '{$tabela_rec}'");
+  // Verifica se a tabela _rec existe
+  $check_rec = $conn->query("SHOW TABLES LIKE '" . escape($conn, $tabela_rec) . "'");
   if ($check_rec && $check_rec->num_rows > 0) {
-    $query_rec = "SELECT COUNT(*) AS cnt FROM `{$tabela_rec}`
+    // Query original com formato de data d/m/Y
+    $query_rec = "SELECT COUNT(*) AS cnt FROM `" . escape($conn, $tabela_rec) . "`
       WHERE STR_TO_DATE(data_compra, '%d/%m/%Y')
       BETWEEN STR_TO_DATE('{$data_inicio_escaped}', '%d/%m/%Y')
       AND STR_TO_DATE('{$data_fim_escaped}', '%d/%m/%Y')";
@@ -422,13 +429,22 @@ foreach ($tabelas as $tabela) {
     if ($result_rec) {
       $row_rec = $result_rec->fetch_assoc();
       $leads_rec = (int)$row_rec['cnt'];
+    } elseif ($conn->error) {
+      // Se houver erro, tenta sem filtro de data para verificar se a tabela tem dados
+      $query_rec_simple = "SELECT COUNT(*) AS cnt FROM `" . escape($conn, $tabela_rec) . "`";
+      $result_rec_simple = $conn->query($query_rec_simple);
+      if ($result_rec_simple) {
+        $row_rec = $result_rec_simple->fetch_assoc();
+        $leads_rec = (int)$row_rec['cnt'];
+      }
     }
   }
   
-  // Verifica se a tabela _ap existe e busca dados
-  $check_ap = $conn->query("SHOW TABLES LIKE '{$tabela_ap}'");
+  // Verifica se a tabela _ap existe
+  $check_ap = $conn->query("SHOW TABLES LIKE '" . escape($conn, $tabela_ap) . "'");
   if ($check_ap && $check_ap->num_rows > 0) {
-    $query_ap = "SELECT COUNT(*) AS cnt FROM `{$tabela_ap}`
+    // Query original com formato de data d/m/Y
+    $query_ap = "SELECT COUNT(*) AS cnt FROM `" . escape($conn, $tabela_ap) . "`
       WHERE STR_TO_DATE(data_compra, '%d/%m/%Y')
       BETWEEN STR_TO_DATE('{$data_inicio_escaped}', '%d/%m/%Y')
       AND STR_TO_DATE('{$data_fim_escaped}', '%d/%m/%Y')";
@@ -437,6 +453,14 @@ foreach ($tabelas as $tabela) {
     if ($result_ap) {
       $row_ap = $result_ap->fetch_assoc();
       $leads_ap = (int)$row_ap['cnt'];
+    } elseif ($conn->error) {
+      // Se houver erro, tenta sem filtro de data para verificar se a tabela tem dados
+      $query_ap_simple = "SELECT COUNT(*) AS cnt FROM `" . escape($conn, $tabela_ap) . "`";
+      $result_ap_simple = $conn->query($query_ap_simple);
+      if ($result_ap_simple) {
+        $row_ap = $result_ap_simple->fetch_assoc();
+        $leads_ap = (int)$row_ap['cnt'];
+      }
     }
   }
   
@@ -444,16 +468,27 @@ foreach ($tabelas as $tabela) {
   
   // Adiciona aos dados se o produto estiver cadastrado ou se houver pelo menos uma tabela existente
   $produto_cadastrado = in_array($tabela, $produtos_cadastrados);
-  $tem_tabela = (isset($check_rec) && $check_rec->num_rows > 0) || (isset($check_ap) && $check_ap->num_rows > 0);
+  $tem_tabela = ($check_rec && $check_rec->num_rows > 0) || ($check_ap && $check_ap->num_rows > 0);
   
-  // Sempre adiciona se o produto estiver cadastrado, ou se houver tabelas existentes
-  if ($produto_cadastrado || $tem_tabela) {
+  // Sempre adiciona se o produto estiver cadastrado (mesmo sem dados), ou se houver tabelas existentes
+  if ($produto_cadastrado) {
+    // Produto cadastrado sempre aparece, mesmo sem dados
     $dados[] = [
       'Operação' => $tabela,
       'Leads_Rec' => $leads_rec,
       'Leads_Ap' => $leads_ap,
       'Total' => $total
     ];
+  } elseif ($tem_tabela) {
+    // Se não estiver cadastrado mas tiver tabela, só adiciona se houver dados
+    if ($total > 0) {
+      $dados[] = [
+        'Operação' => $tabela,
+        'Leads_Rec' => $leads_rec,
+        'Leads_Ap' => $leads_ap,
+        'Total' => $total
+      ];
+    }
   }
 }
 
@@ -616,6 +651,20 @@ if ($exportar) {
       </div>
     <?php endif; ?>
     
+    <?php 
+      // Debug: mostra informações úteis
+      if (isset($_GET['debug'])): 
+    ?>
+      <div class="alert alert-info">
+        <strong>Debug Info:</strong><br>
+        Produtos cadastrados: <?= count($produtos_cadastrados) ?><br>
+        Tabelas encontradas: <?= count($tabelas) ?><br>
+        Dados processados: <?= count($dados) ?><br>
+        Data início: <?= $data_inicio ?><br>
+        Data fim: <?= $data_fim ?>
+      </div>
+    <?php endif; ?>
+    
     <form method="POST" class="row g-3 align-items-end mb-4">
       <div class="col-md-3">
         <label class="form-label">Data Início</label>
@@ -638,7 +687,15 @@ if ($exportar) {
     <hr>
 
         <div class="row">
-          <?php if (!empty($dados)): ?>
+          <?php if (empty($tabelas)): ?>
+            <div class="col-12">
+              <div class="alert alert-warning text-center">
+                <h5>Nenhum produto encontrado</h5>
+                <p>Cadastre produtos em <a href="produtos.php">Produtos</a> ou verifique se existem tabelas _rec ou _ap no banco de dados.</p>
+                <p><small>Debug: <a href="?debug=1">Ativar modo debug</a></small></p>
+              </div>
+            </div>
+          <?php elseif (!empty($dados)): ?>
             <?php foreach ($dados as $item): ?>
               <?php
                 $operacao = $item['Operação'];
@@ -741,7 +798,12 @@ if ($exportar) {
             <?php endforeach; ?>
           <?php else: ?>
             <div class="col-12">
-              <div class="alert alert-warning text-center">Nenhum dado encontrado no período selecionado.</div>
+              <div class="alert alert-warning text-center">
+                <h5>Nenhum dado encontrado no período selecionado</h5>
+                <p>Período: <?= $data_inicio ?> até <?= $data_fim ?></p>
+                <p>Verifique se as tabelas _rec e _ap existem e contêm dados neste período.</p>
+                <p><small>Debug: <a href="?debug=1">Ativar modo debug</a></small></p>
+              </div>
             </div>
           <?php endif; ?>
         </div>
